@@ -1,12 +1,16 @@
 from random import randrange
 from time import sleep
 from typing import Optional
-from fastapi import Body, FastAPI, HTTPException, Response, status
+from fastapi import Body, FastAPI, HTTPException, Response, status, Depends
 from pydantic import BaseModel
 import psycopg2
 from psycopg2.extras import RealDictCursor
-
+from . import models
+from .database import db_engine, get_db
+from sqlalchemy.orm import Session
 app = FastAPI()
+
+models.BASE.metadata.create_all(bind=db_engine)
 
 
 
@@ -17,7 +21,7 @@ class Post(BaseModel):
     published: bool = True 
     rating: Optional[int] = None
 
-while True:
+while True:  
     try:
         conn = psycopg2.connect(
             host="localhost",
@@ -59,9 +63,19 @@ def find_index_of_post(id):
 def root():
     return {"message": "Hello World"}
 
+#testing ORM
+@app.get("/sqlalchemy")
+def test_post(db: Session= Depends(get_db)):
+    posts = db.query(models.Post).all()
+    return posts
+
+
+
+
+
 #get all posts
 @app.get("/posts")
-def get_posts():
+def get_posts(db: Session= Depends(get_db)):
     cur.execute("""SELECT * FROM posts""")
     posts = cur.fetchall()
     print(posts)
@@ -117,4 +131,4 @@ def update_post(id:int, post: Post):
     return updated_post
 
 
-# uvicorn app.main:app --reload
+# uvicorn app.main:app --reload   
