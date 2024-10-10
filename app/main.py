@@ -1,12 +1,12 @@
 from multiprocessing import synchronize
 from random import randrange
 from time import sleep
-from typing import Optional
+from typing import Optional, List
 from fastapi import Body, FastAPI, HTTPException, Response, status, Depends
 from pydantic import BaseModel
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from . import models
+from . import models, schemas
 from .database import db_engine, get_db
 from sqlalchemy.orm import Session
 
@@ -15,14 +15,6 @@ from sqlalchemy.orm import Session
 app = FastAPI()
 
 models.BASE.metadata.create_all(bind=db_engine)
-
-class Post(BaseModel):
-    title: str
-    content: str
-    published: bool = True 
-
-
-
 
 
 while True:  
@@ -45,40 +37,14 @@ while True:
 
 
 
-my_posts = [{"title": "title of post 1", "content":"content of post 1", "id": 1}
-            , {"title": "favorite animes", "content":"I like black clover", "id": 2}
-            ]
-
-def find_post(id: int):
-    for post in my_posts:
-        if post["id"] == id:  
-            return post
-    return None  
-
-def find_index_of_post(id):
-    for i,p in enumerate(my_posts):
-        if p['id'] == id:
-            return i
-    return None
-
-
-
 @app.get("/")
 def root():
     return {"message": "Hello World"}
 
-#testing ORM
-@app.get("/sqlalchemy")
-def test_post(db: Session= Depends(get_db)):
-    posts = db.query(models.Post).all()
-    return posts
-
-
-
 
 
 #get all posts
-@app.get("/posts")
+@app.get("/posts", response_model=List[schemas.PostResponse])
 def get_posts(db: Session= Depends(get_db)):
     posts = db.query(models.Post).all()
     return posts
@@ -86,12 +52,8 @@ def get_posts(db: Session= Depends(get_db)):
 
 
 #create posts
-@app.post("/posts",status_code=status.HTTP_201_CREATED)
-def create_posts(post: Post, db: Session= Depends(get_db)):
-    # cur.execute("""INSERT INTO posts(title, content, published) VALUES(%s, %s, %s) RETURNING * """, 
-    #             (post.title, post.content, post.published))
-    # new_post = cur.fetchone()
-    # conn.commit()
+@app.post("/posts",status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse)
+def create_posts(post: schemas.PostCreate, db: Session= Depends(get_db)):
     new_post = models.Post(**post.dict())
     db.add(new_post)
     db.commit()
@@ -100,15 +62,16 @@ def create_posts(post: Post, db: Session= Depends(get_db)):
 
 
 #retrieve specified posts
-@app.get("/posts/{id}")
-def get_post(id: int, response: Response, db: Session= Depends(get_db)): 
-    # cur.execute("""SELECT * FROM posts WHERE id = %s""",(str(id)),)
-    # post = cur.fetchone()
-
+@app.get("/posts/{id}", response_model=schemas.PostResponse)
+def get_post(id: int, response: Response, db: Session = Depends(get_db)): 
     post = db.query(models.Post).filter(models.Post.id == id).first()
+
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with id: {id} not found")
-    return  post
+
+    return post
+
+
 
 
 #delete posts
@@ -124,13 +87,15 @@ def delete_post(id: int, db: Session = Depends(get_db)):
     # Delete the post if it exists
     db.delete(post_to_delete)
     db.commit()
-
+ 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 
 
 #update posts
 @app.put("/posts/{id}")
-def update_post(id: int, post: Post, db: Session = Depends(get_db)):
+def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)):
     post_to_update = db.query(models.Post).filter(models.Post.id == id)
 
     if not post_to_update.first():
@@ -142,6 +107,18 @@ def update_post(id: int, post: Post, db: Session = Depends(get_db)):
     db.commit()
 
     return post_to_update.first()
+
+
+#create users
+@app.post("/users",status_code=status.HTTP_201_CREATED, response_model=schemas.UserResponse)
+def create_users(user: schemas.UserCreate, db: Session= Depends(get_db)):
+    new_user = models.User(**user.dict())
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
+
 
 
 # uvicorn app.main:app --reload   

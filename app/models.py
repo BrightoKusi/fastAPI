@@ -2,6 +2,8 @@ from sqlalchemy import TEXT, TIMESTAMP, Boolean, Column, Integer, String
 from sqlalchemy.sql import text
 from .database import BASE
 
+
+
 class Post(BASE):   
     __tablename__ = "posts"
 
@@ -11,5 +13,16 @@ class Post(BASE):
     published = Column(Boolean, server_default=text("true"), nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NOW()'))
 
-# alembic revision --autogenerate -m "CREATED_AT timestamp column"
-# alembic revision --autogenerate -m "Your migration message"
+class User(BASE):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, nullable=False)
+    first_name = Column(String, nullable=False)
+    last_name = Column(String, nullable=False)
+    user_name = Column(String, nullable=False)  
+    email = Column(String, nullable=False, unique=True)
+    password = Column(String, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NOW()'))
+
+
+
