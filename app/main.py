@@ -1,3 +1,4 @@
+from multiprocessing import synchronize
 from random import randrange
 from time import sleep
 from typing import Optional
@@ -8,18 +9,21 @@ from psycopg2.extras import RealDictCursor
 from . import models
 from .database import db_engine, get_db
 from sqlalchemy.orm import Session
+
+
+
 app = FastAPI()
 
 models.BASE.metadata.create_all(bind=db_engine)
-
-
-
 
 class Post(BaseModel):
     title: str
     content: str
     published: bool = True 
-    rating: Optional[int] = None
+
+
+
+
 
 while True:  
     try:
@@ -76,59 +80,68 @@ def test_post(db: Session= Depends(get_db)):
 #get all posts
 @app.get("/posts")
 def get_posts(db: Session= Depends(get_db)):
-    cur.execute("""SELECT * FROM posts""")
-    posts = cur.fetchall()
-    print(posts)
-
+    posts = db.query(models.Post).all()
     return posts
+
 
 
 #create posts
 @app.post("/posts",status_code=status.HTTP_201_CREATED)
-def create_posts(post: Post):
-    cur.execute("""INSERT INTO posts(title, content, published) VALUES(%s, %s, %s) RETURNING * """, 
-                (post.title, post.content, post.published))
-    new_post = cur.fetchone()
-    conn.commit()
-
+def create_posts(post: Post, db: Session= Depends(get_db)):
+    # cur.execute("""INSERT INTO posts(title, content, published) VALUES(%s, %s, %s) RETURNING * """, 
+    #             (post.title, post.content, post.published))
+    # new_post = cur.fetchone()
+    # conn.commit()
+    new_post = models.Post(**post.dict())
+    db.add(new_post)
+    db.commit()
+    db.refresh(new_post)
     return new_post
 
 
 #retrieve specified posts
 @app.get("/posts/{id}")
-def get_post(id: int, response: Response): 
-    cur.execute("""SELECT * FROM posts WHERE id = %s""",(str(id)),)
-    post = cur.fetchone()
+def get_post(id: int, response: Response, db: Session= Depends(get_db)): 
+    # cur.execute("""SELECT * FROM posts WHERE id = %s""",(str(id)),)
+    # post = cur.fetchone()
+
+    post = db.query(models.Post).filter(models.Post.id == id).first()
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with id: {id} not found")
-    return {"post detail": post}
+    return  post
 
 
 #delete posts
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(id: int):
-    cur.execute("""DELETE FROM posts WHERE id = %s RETURNING * """, (str(id),))
-    deleted_post = cur.fetchone()
-    conn.commit() 
-
-    if deleted_post == None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with id {id} not found")
+def delete_post(id: int, db: Session = Depends(get_db)):
+    # Query the post
+    post_to_delete = db.query(models.Post).filter(models.Post.id == id).first()
     
+    # Check if the post exists
+    if not post_to_delete:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id: {id} not found")
+    
+    # Delete the post if it exists
+    db.delete(post_to_delete)
+    db.commit()
+
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
 
 #update posts
 @app.put("/posts/{id}")
-def update_post(id:int, post: Post):
-    
-    cur.execute("""UPDATE posts SET title=%s, content=%s, published=%s WHERE id=%s RETURNING *""",
-                (post.title, post.content,post.published, str(id)))
-    updated_post = cur.fetchone()
-    conn.commit()
-    
-    if updated_post == None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with id {id} not found")   
+def update_post(id: int, post: Post, db: Session = Depends(get_db)):
+    post_to_update = db.query(models.Post).filter(models.Post.id == id)
 
-    return updated_post
+    if not post_to_update.first():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id {id} not found")
+
+    # Use post.dict() to dynamically update all columns based on the input
+    post_to_update.update(post.dict(), synchronize_session=False)
+    
+    db.commit()
+
+    return post_to_update.first()
 
 
 # uvicorn app.main:app --reload   
