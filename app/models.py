@@ -19,7 +19,7 @@ class User(BASE):
     id = Column(Integer, primary_key=True, nullable=False)
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
-    user_name = Column(String, nullable=False)  
+    username = Column(String, nullable=False)  
     email = Column(String, nullable=False, unique=True)
     password = Column(String, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NOW()'))

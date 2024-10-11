@@ -16,12 +16,12 @@ class PostResponse(PostBase):
 class UserCreate(BaseModel):
     first_name: str
     last_name: str
-    user_name: str
+    username: str
     email: EmailStr
     password: str
 
 class UserResponse(BaseModel):
     first_name: str
     last_name: str
-    user_name: str
+    username: str
     email: EmailStr
