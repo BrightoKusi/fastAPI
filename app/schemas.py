@@ -25,3 +25,7 @@ class UserResponse(BaseModel):
     last_name: str
     username: str
     email: EmailStr
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
