@@ -1,4 +1,5 @@
-from sqlalchemy import TEXT, TIMESTAMP, Boolean, Column, Integer, String
+from tkinter import CASCADE
+from sqlalchemy import TEXT, TIMESTAMP, Boolean, Column, ForeignKey, Integer, String
 from sqlalchemy.sql import text
 from .database import BASE
 
@@ -13,6 +14,8 @@ class Post(BASE):
     published = Column(Boolean, server_default=text("true"), nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NOW()'))
 
+
+     
 class User(BASE):
     __tablename__ = "users"
 

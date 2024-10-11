@@ -1,4 +1,7 @@
 from datetime import datetime
+from re import S
+from typing import Optional
+from annotated_types import BaseMetadata
 from pydantic import BaseModel, EmailStr
 
 
@@ -29,3 +32,10 @@ class UserResponse(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    id: Optional[str] = None

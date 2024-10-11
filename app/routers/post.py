@@ -1,6 +1,6 @@
 from fastapi import Body, FastAPI, HTTPException, Response, status, Depends, APIRouter
 from typing import List
-from .. import models, schemas
+from .. import models, schemas, oath2
 from ..database import db_engine, get_db
 from sqlalchemy.orm import Session
 
@@ -16,13 +16,19 @@ def get_posts(db: Session= Depends(get_db)):
 
 
 #create posts
-@router.post("/",status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse)
-def create_posts(post: schemas.PostCreate, db: Session= Depends(get_db)):
-    new_post = models.Post(**post.dict())
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse)
+def create_posts(post: schemas.PostCreate, db: Session = Depends(get_db)
+                 , current_user: schemas.TokenData = Depends(oath2.get_current_user)):
+    
+    print(current_user)
+
+    # Create a new post while considering the current user
+    new_post = models.Post(**post.dict())  # Add user_id to post if necessary
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
     return new_post
+
 
 
 #retrieve specified posts
@@ -40,7 +46,8 @@ def get_post(id: int, response: Response, db: Session = Depends(get_db)):
 
 #delete posts
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(id: int, db: Session = Depends(get_db)):
+def delete_post(id: int, db: Session = Depends(get_db), 
+                current_user: schemas.TokenData = Depends(oath2.get_current_user)):
     # Query the post
     post_to_delete = db.query(models.Post).filter(models.Post.id == id).first()
     
@@ -58,8 +65,9 @@ def delete_post(id: int, db: Session = Depends(get_db)):
 
 
 #update posts
-@router.put("/{id}")
-def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)):
+@router.put("/{id}", response_model=schemas.PostResponse)
+def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)
+                , current_user: schemas.TokenData = Depends(oath2.get_current_user)):
     post_to_update = db.query(models.Post).filter(models.Post.id == id)
 
     if not post_to_update.first():
