@@ -4,8 +4,9 @@ from sqlalchemy.orm import sessionmaker
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from time import sleep
+from .config import settings
 
-db_engine = create_engine("postgresql://postgres:260695@localhost:5432/fastapi")
+db_engine = create_engine(f"postgresql://{settings.database_username}:{settings.database_password}@{settings.database_hostname}:{settings.database_port}/{settings.database_name}")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_engine)
 

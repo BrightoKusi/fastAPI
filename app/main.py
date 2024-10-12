@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from . import models
 from .database import db_engine
 from .routers import post, user, auth
-
+from .config import settings
 #
 app = FastAPI()
 
