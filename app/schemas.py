@@ -15,6 +15,9 @@ class PostCreate(PostBase):
 
 class PostResponse(PostBase):
     created_at: datetime
+    user_id: int
+
+
 
 class UserCreate(BaseModel):
     first_name: str

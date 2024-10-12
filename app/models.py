@@ -13,7 +13,7 @@ class Post(BASE):
     content = Column(String, nullable=False)
     published = Column(Boolean, server_default=text("true"), nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NOW()'))
-
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
      
 class User(BASE):

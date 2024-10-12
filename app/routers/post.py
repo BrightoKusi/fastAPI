@@ -16,18 +16,15 @@ def get_posts(db: Session= Depends(get_db)):
 
 
 #create posts
-@router.post("/", status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse)
-def create_posts(post: schemas.PostCreate, db: Session = Depends(get_db)
-                 , current_user: schemas.TokenData = Depends(oath2.get_current_user)):
-    
-    print(current_user)
-
-    # Create a new post while considering the current user
-    new_post = models.Post(**post.dict())  # Add user_id to post if necessary
+@router.post("/",status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse)
+def create_posts(post: schemas.PostCreate, db: Session= Depends(get_db), current_user: schemas.TokenData = Depends(oath2.get_current_user)):
+    print(f"Current user ID: {current_user.id}")
+    new_post = models.Post(**post.dict(), user_id=current_user.id)
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
     return new_post
+
 
 
 
@@ -44,38 +41,51 @@ def get_post(id: int, response: Response, db: Session = Depends(get_db)):
 
 
 
-#delete posts
+
+# delete posts
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(id: int, db: Session = Depends(get_db), 
                 current_user: schemas.TokenData = Depends(oath2.get_current_user)):
     # Query the post
     post_to_delete = db.query(models.Post).filter(models.Post.id == id).first()
-    
+    print(current_user.id)
+    print(post_to_delete.user_id)
+    print(f"Current user ID: {current_user.id} (type: {type(current_user.id)})")
+    print(f"Post user ID: {post_to_delete.user_id} (type: {type(post_to_delete.user_id)})")
+
     # Check if the post exists
     if not post_to_delete:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id: {id} not found")
+
+    # Ensure the current user is the owner of the post
+    if post_to_delete.user_id != int(current_user.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Unauthorized to delete this post")
+
     
-    # Delete the post if it exists
+    # Delete the post if it exists and the user is authorized
     db.delete(post_to_delete)
     db.commit()
- 
+
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
 
 
 #update posts
 @router.put("/{id}", response_model=schemas.PostResponse)
 def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)
                 , current_user: schemas.TokenData = Depends(oath2.get_current_user)):
-    post_to_update = db.query(models.Post).filter(models.Post.id == id)
+    
+    post_to_update = db.query(models.Post).filter(models.Post.id == id).first()
 
-    if not post_to_update.first():
+    if not post_to_update:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id {id} not found")
 
+    # Ensure the current user is the owner of the post
+    if post_to_update.user_id != int(current_user.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Unauthorized to delete this post")
+
     # Use post.dict() to dynamically update all columns based on the input
-    post_to_update.update(post.dict(), synchronize_session=False)
+    post_to_update.update(post_to_update.dict(), synchronize_session=False)
     
     db.commit()
 
-    return post_to_update.first()
+    return post_to_update
