@@ -9,8 +9,10 @@ router = APIRouter(prefix="/posts", tags=['Posts'])
 
 #get all posts
 @router.get("/", response_model=List[schemas.PostResponse])
-def get_posts(db: Session= Depends(get_db)):
-    posts = db.query(models.Post).all()
+def get_posts(db: Session= Depends(get_db), limit:int=10, current_user: schemas.TokenData = Depends(oath2.get_current_user)):
+    
+    print(limit)
+    posts = db.query(models.Post).limit(limit).all()
     return posts
 
 
@@ -30,7 +32,7 @@ def create_posts(post: schemas.PostCreate, db: Session= Depends(get_db), current
 
 #retrieve specified posts
 @router.get("/{id}", response_model=schemas.PostResponse)
-def get_post(id: int, response: Response, db: Session = Depends(get_db)): 
+def get_post(id: int, response: Response, db: Session = Depends(get_db), current_user: schemas.TokenData = Depends(oath2.get_current_user)): 
     post = db.query(models.Post).filter(models.Post.id == id).first()
 
     if not post:
