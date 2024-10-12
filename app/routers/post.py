@@ -1,5 +1,5 @@
 from fastapi import Body, FastAPI, HTTPException, Response, status, Depends, APIRouter
-from typing import List
+from typing import List, Optional
 from .. import models, schemas, oath2
 from ..database import db_engine, get_db
 from sqlalchemy.orm import Session
@@ -7,12 +7,27 @@ from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/posts", tags=['Posts'])
 
+
 #get all posts
 @router.get("/", response_model=List[schemas.PostResponse])
-def get_posts(db: Session= Depends(get_db), limit:int=10, current_user: schemas.TokenData = Depends(oath2.get_current_user)):
+def get_posts(db: Session = Depends(get_db), limit: int = 10, offset: int = 0, 
+               first_name: Optional[str] = None, search: Optional[str] = ""):
+    # Validate limit and offset
+    if limit < 1 or limit > 100:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Limit must be between 1 and 100")
     
-    print(limit)
-    posts = db.query(models.Post).limit(limit).all()
+    # Query the posts, optionally filtering by first_name and last_name if provided
+    query = db.query(models.Post).join(models.User)
+
+    if first_name:
+        query = query.filter(models.User.first_name == first_name)
+
+    if search:
+        query = query.filter(models.Post.title.contains(search))
+
+    # Apply limit and offset for pagination
+    posts = query.limit(limit).all()
+
     return posts
 
 
