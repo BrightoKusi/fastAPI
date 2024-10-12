@@ -13,10 +13,24 @@ class PostBase(BaseModel):
 class PostCreate(PostBase):
     pass
 
+
+class UserCreate(BaseModel):
+    first_name: str
+    last_name: str
+    username: str
+    email: EmailStr
+    password: str
+
+class UserResponse(BaseModel):
+    first_name: str
+    last_name: str
+    username: str
+    email: EmailStr
+
 class PostResponse(PostBase):
     created_at: datetime
     user_id: int
-
+    owner: UserResponse
 
 
 class UserCreate(BaseModel):

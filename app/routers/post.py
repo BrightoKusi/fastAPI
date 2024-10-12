@@ -69,23 +69,29 @@ def delete_post(id: int, db: Session = Depends(get_db),
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-#update posts
 @router.put("/{id}", response_model=schemas.PostResponse)
-def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)
-                , current_user: schemas.TokenData = Depends(oath2.get_current_user)):
-    
+def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db),
+                current_user: schemas.TokenData = Depends(oath2.get_current_user)):
+
+    # Fetch the post using .first() to get the actual post object
     post_to_update = db.query(models.Post).filter(models.Post.id == id).first()
 
+    # Check if the post exists
     if not post_to_update:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id {id} not found")
 
     # Ensure the current user is the owner of the post
     if post_to_update.user_id != int(current_user.id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Unauthorized to delete this post")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Unauthorized to update this post")
 
-    # Use post.dict() to dynamically update all columns based on the input
-    post_to_update.update(post_to_update.dict(), synchronize_session=False)
-    
+    # Update the post with the new data
+    for key, value in post.dict().items():
+        setattr(post_to_update, key, value)
+
+    # Commit the changes
     db.commit()
+
+    # Refresh the updated post to reflect the changes
+    db.refresh(post_to_update)
 
     return post_to_update

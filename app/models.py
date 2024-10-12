@@ -2,7 +2,7 @@ from tkinter import CASCADE
 from sqlalchemy import TEXT, TIMESTAMP, Boolean, Column, ForeignKey, Integer, String
 from sqlalchemy.sql import text
 from .database import BASE
-
+from sqlalchemy.orm import relationship
 
 
 class Post(BASE):   
@@ -14,6 +14,8 @@ class Post(BASE):
     published = Column(Boolean, server_default=text("true"), nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NOW()'))
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    owner = relationship("User")
+     
 
      
 class User(BASE):
