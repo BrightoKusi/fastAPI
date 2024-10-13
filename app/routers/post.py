@@ -1,5 +1,7 @@
 from fastapi import Body, FastAPI, HTTPException, Response, status, Depends, APIRouter
 from typing import List, Optional
+
+from sqlalchemy import func
 from .. import models, schemas, oath2
 from ..database import db_engine, get_db
 from sqlalchemy.orm import Session
@@ -8,27 +10,32 @@ from sqlalchemy.orm import Session
 router = APIRouter(prefix="/posts", tags=['Posts'])
 
 
-#get all posts
-@router.get("/", response_model=List[schemas.PostResponse])
-def get_posts(db: Session = Depends(get_db), limit: int = 10, offset: int = 0, 
-               first_name: Optional[str] = None, search: Optional[str] = ""):
-    # Validate limit and offset
+# Get all posts with pagination, filtering, and search
+@router.get("/", response_model=List[schemas.VoteResponse])
+def get_posts(db: Session = Depends(get_db), limit: int = 10, first_name: Optional[str] = None, search: Optional[str] = ""):
+    # Validate limit
     if limit < 1 or limit > 100:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Limit must be between 1 and 100")
     
-    # Query the posts, optionally filtering by first_name and last_name if provided
-    query = db.query(models.Post).join(models.User)
+    # Query posts with a count of votes, join with User to allow filtering by first_name
+    query = db.query(models.Post, func.count(models.Vote.post_id).label('votes')).join(
+        models.Vote, models.Post.id == models.Vote.post_id, isouter=True).join(
+        models.User, models.Post.user_id == models.User.id).group_by(models.Post.id)
 
+    # Filter by first_name if provided
     if first_name:
         query = query.filter(models.User.first_name == first_name)
 
+    # Filter by search term in post title
     if search:
         query = query.filter(models.Post.title.contains(search))
-
-    # Apply limit and offset for pagination
+    
+    # Apply limit for pagination
     posts = query.limit(limit).all()
 
-    return posts
+    # Return the posts in the format expected by VoteResponse schema
+    return [{"Post": post, "votes": votes} for post, votes in posts]
+
 
 
 
@@ -46,9 +53,14 @@ def create_posts(post: schemas.PostCreate, db: Session= Depends(get_db), current
 
 
 #retrieve specified posts
-@router.get("/{id}", response_model=schemas.PostResponse)
+@router.get("/{id}", response_model=schemas.VoteResponse)
 def get_post(id: int, response: Response, db: Session = Depends(get_db), current_user: schemas.TokenData = Depends(oath2.get_current_user)): 
-    post = db.query(models.Post).filter(models.Post.id == id).first()
+    
+    query = db.query(models.Post, func.count(models.Vote.post_id).label('votes')).join(
+        models.Vote, models.Post.id == models.Vote.post_id, isouter=True).join(
+        models.User, models.Post.user_id == models.User.id).group_by(models.Post.id)
+    
+    post = query.filter(models.Post.id == id).first()
 
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with id: {id} not found")

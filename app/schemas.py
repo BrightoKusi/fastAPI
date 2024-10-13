@@ -61,3 +61,7 @@ class TokenData(BaseModel):
 class Vote(BaseModel):
     post_id: int
     dir: int = Field(..., ge=0, le=1)
+
+class VoteResponse(BaseModel):
+    Post: PostResponse
+    votes: int
